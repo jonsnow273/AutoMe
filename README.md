@@ -252,3 +252,7 @@ Every generated reply uses this profile so it sounds like you, not a bot.
 ## License
 
 MIT License — feel free to use, modify, and build on this.
+
+---
+
+made by --- pranit bharat more 🐐s
