@@ -255,4 +255,4 @@ MIT License — feel free to use, modify, and build on this.
 
 ---
 
-made by --- pranit bharat more 🐐s
+made by --- pranit
