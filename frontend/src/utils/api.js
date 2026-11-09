@@ -16,9 +16,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to login if the 401 happens on an authenticated request, not on auth routes
+    const isAuthRoute = error.config?.url?.includes('/auth/login') ||
+                        error.config?.url?.includes('/auth/signup') ||
+                        error.config?.url?.includes('/auth/reset-password')
+
+    if (error.response?.status === 401 && !isAuthRoute) {
       localStorage.removeItem('autome_token')
-      window.location.href = '/login'
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

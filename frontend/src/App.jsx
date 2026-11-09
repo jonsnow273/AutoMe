@@ -3,7 +3,11 @@ import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
 import Inbox from './pages/Inbox'
+import Conversation from './pages/Conversation'
+import EmptyConversation from './components/EmptyConversation'
+import ConnectPlatforms from './pages/ConnectPlatforms'
 
 // Spinner shown while auth state loads
 function Spinner() {
@@ -34,7 +38,12 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/inbox" replace />} />
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
-      <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+      <Route element={<ProtectedRoute><Inbox /></ProtectedRoute>}>
+        <Route path="/inbox" element={<EmptyConversation />} />
+        <Route path="/inbox/:contactId" element={<Conversation />} />
+      </Route>
+      <Route path="/platforms" element={<ProtectedRoute><ConnectPlatforms /></ProtectedRoute>} />
     </Routes>
   )
 }

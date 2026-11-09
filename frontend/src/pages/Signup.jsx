@@ -37,7 +37,7 @@ export default function Signup() {
         headers: { Authorization: `Bearer ${tokenData.access_token}` }
       })
       login(tokenData.access_token, userData)
-      toast.success('Account created! Welcome to AutoMe 🤖')
+      toast.success('Account created! Welcome to AutoMe')
       navigate('/inbox')
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Signup failed')
@@ -50,76 +50,76 @@ export default function Signup() {
     <div className="min-h-screen bg-dark-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
+        {/* Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-500 mb-4">
-            <span className="text-2xl">🤖</span>
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent-600 font-bold text-white text-lg mb-4 shadow-lg shadow-accent-600/30">
+            AM
           </div>
-          <h1 className="text-2xl font-bold text-white">Create your account</h1>
-          <p className="text-gray-400 mt-1 text-sm">Let AutoMe handle your messages</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Create an account</h1>
+          <p className="text-gray-400 mt-1 text-sm">Start automating your replies with AutoMe</p>
         </div>
 
         {/* Card */}
-        <div className="bg-dark-700 border border-dark-600 rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="bg-dark-800 border border-dark-700 rounded-2xl p-8 shadow-xl">
+          <form onSubmit={handleSubmit} className="space-y-4">
 
             {/* Username */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Username
+              </label>
               <input
                 type="text"
                 name="username"
                 value={form.username}
                 onChange={handleChange}
-                placeholder="cool_username"
-                className="w-full bg-dark-800 border border-dark-500 text-white rounded-xl px-4 py-3 text-sm
-                           placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1
-                           focus:ring-accent-500 transition-colors"
+                placeholder="your_username"
+                className="w-full bg-dark-900 border border-dark-600 text-white rounded-xl px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-colors"
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Email
+              </label>
               <input
                 type="email"
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                placeholder="you@example.com"
-                className="w-full bg-dark-800 border border-dark-500 text-white rounded-xl px-4 py-3 text-sm
-                           placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1
-                           focus:ring-accent-500 transition-colors"
+                placeholder="you@email.com"
+                className="w-full bg-dark-900 border border-dark-600 text-white rounded-xl px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-colors"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Password
+              </label>
               <input
                 type="password"
                 name="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full bg-dark-800 border border-dark-500 text-white rounded-xl px-4 py-3 text-sm
-                           placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1
-                           focus:ring-accent-500 transition-colors"
+                placeholder="At least 6 characters"
+                className="w-full bg-dark-900 border border-dark-600 text-white rounded-xl px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-colors"
               />
             </div>
 
-            {/* Confirm Password */}
+            {/* Confirm */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm Password</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Confirm Password
+              </label>
               <input
                 type="password"
                 name="confirm"
                 value={form.confirm}
                 onChange={handleChange}
-                placeholder="••••••••"
-                className="w-full bg-dark-800 border border-dark-500 text-white rounded-xl px-4 py-3 text-sm
-                           placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1
-                           focus:ring-accent-500 transition-colors"
+                placeholder="Re-enter password"
+                className="w-full bg-dark-900 border border-dark-600 text-white rounded-xl px-4 py-2.5 text-sm placeholder-gray-500 focus:outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 transition-colors"
               />
             </div>
 
@@ -127,9 +127,7 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-accent-500 hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed
-                         text-white font-semibold rounded-xl py-3 text-sm transition-colors flex items-center
-                         justify-center gap-2"
+              className="w-full bg-accent-600 hover:bg-accent-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-accent-600/20 mt-2"
             >
               {loading ? (
                 <>
@@ -141,7 +139,7 @@ export default function Signup() {
           </form>
         </div>
 
-        {/* Footer link */}
+        {/* Footer */}
         <p className="text-center text-gray-400 text-sm mt-6">
           Already have an account?{' '}
           <Link to="/login" className="text-accent-400 hover:text-accent-300 font-medium transition-colors">
