@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 from pydantic import BaseModel, EmailStr
 from backend.database import get_db
 from backend.models.user import User
@@ -19,8 +20,13 @@ class SignupRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str
+    username: str  # Can be username or email
     password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    identifier: str  # username or email
+    new_password: str
 
 
 class TokenResponse(BaseModel):
@@ -42,15 +48,18 @@ class UserResponse(BaseModel):
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def signup(data: SignupRequest, db: Session = Depends(get_db)):
     """Create a new user account and return a JWT token."""
-    if db.query(User).filter(User.username == data.username).first():
+    username_clean = data.username.strip()
+    email_clean = data.email.strip().lower()
+
+    if db.query(User).filter(func.lower(User.username) == username_clean.lower()).first():
         raise HTTPException(status_code=400, detail="Username already taken")
 
-    if db.query(User).filter(User.email == data.email).first():
+    if db.query(User).filter(func.lower(User.email) == email_clean).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user = User(
-        username=data.username,
-        email=data.email,
+        username=username_clean,
+        email=email_clean,
         hashed_password=hash_password(data.password),
     )
     db.add(user)
@@ -63,16 +72,56 @@ def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(data: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate a user and return a JWT token."""
-    user = db.query(User).filter(User.username == data.username).first()
+    """Authenticate a user using either username or email (case-insensitive) and return a JWT token."""
+    identifier = data.username.strip()
+
+    user = (
+        db.query(User)
+        .filter(
+            or_(
+                func.lower(User.username) == identifier.lower(),
+                func.lower(User.email) == identifier.lower(),
+            )
+        )
+        .first()
+    )
+
     if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail="Invalid username/email or password",
         )
 
     token = create_access_token({"sub": str(user.id)})
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password by email or username."""
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    identifier = data.identifier.strip()
+    user = (
+        db.query(User)
+        .filter(
+            or_(
+                func.lower(User.username) == identifier.lower(),
+                func.lower(User.email) == identifier.lower(),
+            )
+        )
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with that username or email")
+
+    user.hashed_password = hash_password(data.new_password)
+    db.commit()
+    return {
+        "message": "Password updated successfully. You can now sign in.",
+        "username": user.username,
+    }
 
 
 @router.get("/me", response_model=UserResponse)

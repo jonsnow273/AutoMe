@@ -174,7 +174,7 @@ async def connect_discord(
     if not success or not platform.is_connected:
         err = platform.error_message or "Failed to connect to Discord"
         if "token" in err.lower():
-            detail = "Invalid Discord bot token. Please verify you copied the Bot Token from Discord Developer Portal (under Bot -> Reset Token) and enabled Message Content Intent."
+            detail = "Invalid Discord account token. Please make sure you copied the full authorization token from your browser/client network tab."
         else:
             detail = f"Discord connection failed: {err}"
         raise HTTPException(status_code=400, detail=detail)
