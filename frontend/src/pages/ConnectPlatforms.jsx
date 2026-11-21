@@ -4,12 +4,19 @@ import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { PLATFORMS } from '../utils/constants';
 import PlatformCard from '../components/PlatformCard';
+import QRScanner from '../components/QRScanner';
 
 export default function ConnectPlatforms() {
   const navigate = useNavigate();
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // WhatsApp QR State
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [qrCode, setQrCode] = useState(null);
+  const [qrStatus, setQrStatus] = useState('initializing');
+  const [qrLoading, setQrLoading] = useState(false);
 
   const fetchPlatforms = async () => {
     try {
@@ -26,12 +33,79 @@ export default function ConnectPlatforms() {
     fetchPlatforms();
   }, []);
 
+  // Poll WhatsApp status while QR modal is active
+  useEffect(() => {
+    let interval;
+    if (showQrModal && qrStatus !== 'ready') {
+      interval = setInterval(async () => {
+        try {
+          const res = await api.get('/platforms/whatsapp/status');
+          if (res.data?.status === 'ready') {
+            setQrStatus('ready');
+            setShowQrModal(false);
+            toast.success('WhatsApp connected successfully!');
+            await fetchPlatforms();
+          } else if (res.data?.qr) {
+            setQrCode(res.data.qr);
+            setQrStatus('qr');
+            setQrLoading(false);
+          }
+        } catch (err) {
+          console.error('Polling WhatsApp status error:', err);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [showQrModal, qrStatus]);
+
+  const handleConnectWhatsApp = async () => {
+    setShowQrModal(true);
+    setQrLoading(true);
+    setQrCode(null);
+    setQrStatus('initializing');
+    try {
+      const res = await api.post('/platforms/whatsapp/connect');
+      if (res.data?.qr) {
+        setQrCode(res.data.qr);
+        setQrStatus('qr');
+      }
+    } catch (err) {
+      console.error('Failed to start WhatsApp session:', err);
+      const msg = err.response?.data?.detail || 'Failed to start WhatsApp session';
+      toast.error(msg);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleDisconnectWhatsApp = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/platforms/whatsapp/disconnect');
+      toast.success('WhatsApp disconnected');
+      await fetchPlatforms();
+    } catch (err) {
+      console.error('Failed to disconnect WhatsApp:', err);
+      toast.error('Failed to disconnect WhatsApp');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleConnect = async (platformId, payload) => {
+    if (platformId === 'whatsapp') {
+      handleConnectWhatsApp();
+      return;
+    }
+
     setActionLoading(true);
     try {
       if (platformId === 'discord') {
         await api.post('/platforms/discord/connect', payload);
-        toast.success('Discord bot connected and running');
+        toast.success('Discord connected and running');
+      } else if (platformId === 'instagram') {
+        await api.post('/platforms/instagram/connect', payload);
+        toast.success('Instagram connected and monitoring DMs');
       } else {
         toast.error(`${platformId} connection coming in next phase`);
         return;
@@ -134,20 +208,30 @@ export default function ConnectPlatforms() {
             <PlatformCard
               platform={PLATFORMS.whatsapp}
               platformRecord={getPlatformRecord('whatsapp')}
-              onConnect={() => toast('WhatsApp connection coming in Phase 4')}
-              onDisconnect={handleDisconnect}
+              onConnect={handleConnectWhatsApp}
+              onDisconnect={handleDisconnectWhatsApp}
               loading={actionLoading}
             />
 
             <PlatformCard
               platform={PLATFORMS.instagram}
               platformRecord={getPlatformRecord('instagram')}
-              onConnect={() => toast('Instagram connection coming in Phase 3')}
+              onConnect={handleConnect}
               onDisconnect={handleDisconnect}
+              onReconnect={handleReconnect}
               loading={actionLoading}
             />
           </div>
         )}
+
+        {/* WhatsApp QR Modal */}
+        <QRScanner
+          isOpen={showQrModal}
+          onClose={() => setShowQrModal(false)}
+          qrCode={qrCode}
+          status={qrStatus}
+          loading={qrLoading}
+        />
       </div>
     </div>
   );

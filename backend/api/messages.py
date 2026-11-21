@@ -4,6 +4,10 @@ from sqlalchemy import desc, func, or_
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+import os
+import httpx
+
+WHATSAPP_SERVICE_URL = os.getenv("WHATSAPP_SERVICE_URL", "http://localhost:3001")
 
 from backend.database import get_db
 from backend.auth.dependencies import get_current_user
@@ -228,6 +232,23 @@ async def send_message(
     success = False
     if contact.platform == "discord":
         success = await send_discord_dm(current_user.id, contact.platform_user_id, data.content)
+    elif contact.platform == "whatsapp":
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(
+                    f"{WHATSAPP_SERVICE_URL}/message/send",
+                    json={
+                        "userId": current_user.id,
+                        "to": contact.platform_user_id,
+                        "message": data.content,
+                    }
+                )
+                success = (res.status_code == 200)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send via WhatsApp: {e}")
+    elif contact.platform == "instagram":
+        from backend.connectors.session_manager import send_instagram_dm
+        success = await send_instagram_dm(current_user.id, contact.platform_user_id, data.content)
     else:
         raise HTTPException(status_code=400, detail=f"Sending not implemented for {contact.platform}")
 

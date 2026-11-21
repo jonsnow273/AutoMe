@@ -1,0 +1,16 @@
+{
+  "name": "autome-whatsapp-service",
+  "version": "1.0.0",
+  "description": "AutoMe Multi-User WhatsApp Microservice",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

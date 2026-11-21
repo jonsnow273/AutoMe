@@ -5,6 +5,7 @@ from backend.database import SessionLocal
 from backend.models.platform import Platform, PlatformType
 from backend.utils.notifications import decrypt_json
 from backend.connectors.discord_bot import DiscordBot
+from backend.connectors.instagram import InstagramConnector
 from backend.events import emit_new_message, emit_contact_update
 
 logger = logging.getLogger(__name__)
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 # Track running bot instances in memory: {user_id: DiscordBot}
 _active_discord_bots: Dict[int, DiscordBot] = {}
 _active_discord_tasks: Dict[int, asyncio.Task] = {}
+
+# Track running Instagram instances in memory: {user_id: InstagramConnector}
+_active_instagram_connectors: Dict[int, InstagramConnector] = {}
 
 
 async def _on_new_message_callback(user_id: int, message_data: dict, contact_data: dict):
@@ -116,8 +120,83 @@ async def stop_discord_bot(user_id: int, platform_type: str = "discord") -> bool
     return True
 
 
+async def start_instagram_connector(user_id: int, platform_id: int) -> bool:
+    """Start Instagram connector and DM monitoring for a user."""
+    db = SessionLocal()
+    try:
+        platform = db.query(Platform).filter(Platform.id == platform_id).first()
+        if not platform or platform.platform_type != PlatformType.INSTAGRAM:
+            logger.error(f"Platform {platform_id} not found or not Instagram")
+            return False
+
+        creds = decrypt_json(platform.credentials)
+        if not creds:
+            logger.error(f"No credentials found for Instagram platform {platform_id}")
+            return False
+
+        # Stop existing instance if already active
+        if user_id in _active_instagram_connectors:
+            await stop_instagram_connector(user_id)
+
+        connector = InstagramConnector(
+            user_id=user_id,
+            platform_id=platform_id,
+            credentials=creds,
+            on_new_message=_on_new_message_callback,
+        )
+        _active_instagram_connectors[user_id] = connector
+
+        success = await connector.connect_and_start()
+        if not success:
+            _active_instagram_connectors.pop(user_id, None)
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to start Instagram connector for user {user_id}: {e}")
+        return False
+    finally:
+        db.close()
+
+
+async def stop_instagram_connector(user_id: int) -> bool:
+    """Stop a user's Instagram connector."""
+    connector = _active_instagram_connectors.pop(user_id, None)
+    if connector:
+        try:
+            await connector.stop()
+        except Exception as e:
+            logger.error(f"Error stopping Instagram connector for user {user_id}: {e}")
+
+    db = SessionLocal()
+    try:
+        platform = db.query(Platform).filter(
+            Platform.user_id == user_id,
+            Platform.platform_type == PlatformType.INSTAGRAM
+        ).first()
+        if platform:
+            platform.is_connected = False
+            db.commit()
+    finally:
+        db.close()
+
+    logger.info(f"Stopped Instagram connector for user {user_id}")
+    return True
+
+
 async def get_bot_status(user_id: int, platform_type: str = "discord") -> dict:
-    """Get status of a user's bot."""
+    """Get status of a user's platform connector."""
+    if platform_type == "instagram":
+        connector = _active_instagram_connectors.get(user_id)
+        if connector and connector._running:
+            return {
+                "running": True,
+                "connected": True,
+                "username": connector.ig_username,
+            }
+        return {"running": False, "connected": False, "username": None}
+
     bot = _active_discord_bots.get(user_id)
     if bot and bot._running:
         is_ready = bot.client.is_ready() if bot.client else False
@@ -127,6 +206,15 @@ async def get_bot_status(user_id: int, platform_type: str = "discord") -> dict:
             "username": str(bot.client.user) if (bot.client and bot.client.user) else None,
         }
     return {"running": False, "connected": False, "username": None}
+
+
+async def send_instagram_dm(user_id: int, target: str, content: str) -> bool:
+    """Send an Instagram DM via user's connected account."""
+    connector = _active_instagram_connectors.get(user_id)
+    if not connector or not connector._running:
+        logger.warning(f"No active Instagram connector for user {user_id}")
+        return False
+    return await connector.send_message(target, content)
 
 
 async def send_discord_dm(user_id: int, platform_user_id: str, content: str) -> bool:
@@ -147,16 +235,19 @@ async def restart_discord_bot(user_id: int, platform_id: int) -> bool:
 
 
 async def auto_start_all_bots():
-    """Auto-start Discord bots for all platforms that have credentials saved."""
+    """Auto-start Discord bots and Instagram connectors on startup."""
     db = SessionLocal()
     try:
-        platforms = db.query(Platform).filter(
-            Platform.platform_type == PlatformType.DISCORD
-        ).all()
+        platforms = db.query(Platform).all()
         for p in platforms:
-            if p.credentials:
+            if not p.credentials:
+                continue
+            if p.platform_type == PlatformType.DISCORD:
                 logger.info(f"Auto-starting Discord bot on startup for user {p.user_id}...")
                 await start_discord_bot(p.user_id, p.id)
+            elif p.platform_type == PlatformType.INSTAGRAM and p.is_connected:
+                logger.info(f"Auto-starting Instagram connector on startup for user {p.user_id}...")
+                await start_instagram_connector(p.user_id, p.id)
     except Exception as e:
         logger.error(f"Error in auto_start_all_bots: {e}")
     finally:
@@ -164,12 +255,18 @@ async def auto_start_all_bots():
 
 
 async def stop_all_bots():
-    """Stop all running bots on shutdown."""
-    user_ids = list(_active_discord_bots.keys())
-    for uid in user_ids:
+    """Stop all running bots and connectors on shutdown."""
+    for uid in list(_active_discord_bots.keys()):
         try:
             await stop_discord_bot(uid)
         except Exception as e:
+            logger.error(f"Error stopping Discord bot for user {uid}: {e}")
+
+    for uid in list(_active_instagram_connectors.keys()):
+        try:
+            await stop_instagram_connector(uid)
+        except Exception as e:
+            logger.error(f"Error stopping Instagram connector for user {uid}: {e}")
             logger.error(f"Error stopping bot for user {uid}: {e}")
 
 
