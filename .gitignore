@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,8 +17,13 @@ dist/
 *.sqlite
 
 # Auth sessions
+whatsapp-service/sessions/
 whatsapp-service/.wwebjs_auth/
 whatsapp-service/.wwebjs_cache/
+sessions/
+**/sessions/**
+.wwebjs_*
+
 
 # Google credentials
 credentials.json
