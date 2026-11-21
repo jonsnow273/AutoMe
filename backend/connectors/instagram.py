@@ -343,13 +343,35 @@ class InstagramConnector:
             if not settings.get("auto_reply_enabled", True) or not settings.get("busy_mode", True):
                 return
 
-            reply_text = settings.get(
-                "custom_busy_message",
-                "Hey! I'm currently busy and away right now. I've received your DM on Instagram and will reply as soon as I'm back!"
-            )
+            # Generate AI contextual reply
+            reply_text = None
+            try:
+                from backend.ai.reply_generator import generate_reply
+                ai_res = await generate_reply(
+                    user_id=self.user_id,
+                    incoming_text=incoming_text,
+                    contact=contact,
+                    db=db,
+                    platform_type="instagram",
+                    custom_busy_note=settings.get("custom_busy_message"),
+                )
+                reply_text = ai_res.get("reply")
+            except Exception as e:
+                logger.error(f"AI reply generation error on Instagram: {e}")
 
-            # Human typing delay simulation (3-5 seconds)
-            await asyncio.sleep(random.uniform(3.0, 5.0))
+            if not reply_text:
+                reply_text = settings.get(
+                    "custom_busy_message",
+                    "Hey! I'm currently busy and away right now. I've received your DM on Instagram and will reply as soon as I'm back!"
+                )
+
+            # Realistic human reading pause (3.5 to 6 seconds)
+            await asyncio.sleep(random.uniform(3.5, 6.0))
+
+            # Human typing simulation (3 to 7.5 seconds)
+            char_count = len(reply_text)
+            typing_duration = max(3.0, min(7.5, (char_count * 0.08) + random.uniform(1.0, 2.5)))
+            await asyncio.sleep(typing_duration)
 
             if not self._running or not self.client:
                 return

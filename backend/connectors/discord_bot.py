@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import asyncio
+import random
 from typing import Optional, Callable, Awaitable
 from datetime import datetime, timezone
 import discord
@@ -260,23 +261,52 @@ class DiscordBot:
             db.commit()
             db.refresh(db_message)
 
-            # Real-time WebSocket emission to frontend
-            if self._on_new_message:
-                await self._notify_socket(db_message, contact)
-
             # Check if busy mode / auto reply is enabled
             platform = db.query(Platform).filter(Platform.id == self.platform_id).first()
             settings = json.loads(platform.settings) if (platform and platform.settings) else {}
             auto_reply_enabled = settings.get("auto_reply_enabled", True)
             busy_mode = settings.get("busy_mode", True)
 
+            # Generate AI contextual reply and analyze mood/urgency
+            try:
+                from backend.ai.reply_generator import generate_reply
+                ai_res = await generate_reply(
+                    user_id=self.user_id,
+                    incoming_text=content,
+                    contact=contact,
+                    db=db,
+                    platform_type="discord",
+                    custom_busy_note=settings.get("custom_busy_message"),
+                )
+                db_message.suggested_reply = ai_res.get("reply")
+                db_message.reply_confidence = ai_res.get("confidence")
+                try:
+                    db_message.mood = MessageMood(ai_res.get("mood", "neutral"))
+                except Exception:
+                    pass
+                try:
+                    db_message.urgency = MessageUrgency(ai_res.get("urgency", "low"))
+                except Exception:
+                    pass
+                try:
+                    db_message.relationship_type = RelationshipType(ai_res.get("relationship", "friend"))
+                except Exception:
+                    pass
+                db.commit()
+            except Exception as e:
+                logger.error(f"AI reply generation error on Discord: {e}")
+
+            # Real-time WebSocket emission to frontend (with AI mood and suggested reply)
+            if self._on_new_message:
+                await self._notify_socket(db_message, contact)
+
             if auto_reply_enabled and busy_mode:
-                busy_text = settings.get(
+                reply_text = db_message.suggested_reply or settings.get(
                     "custom_busy_message",
                     "Hey! I'm currently busy right now. I've received your message and will get back to you as soon as I can!"
                 )
                 # Run auto-reply in background with human-like delay
-                asyncio.create_task(self._send_auto_reply(message.channel, busy_text, contact.id))
+                asyncio.create_task(self._send_auto_reply(message.channel, reply_text, contact.id))
 
         except Exception as e:
             logger.error(f"Error handling incoming DM: {e}")
@@ -285,13 +315,22 @@ class DiscordBot:
             db.close()
 
     async def _send_auto_reply(self, channel, reply_text: str, contact_id: int):
-        """Simulate typing and send auto-reply directly from user's account."""
+        """Simulate realistic human reading pause and typing delay before sending."""
         try:
-            await asyncio.sleep(2.0)
+            # 1. Realistic human reading pause (3.5 to 6 seconds)
+            read_delay = random.uniform(3.5, 6.0)
+            await asyncio.sleep(read_delay)
+
+            # 2. Human typing simulation based on reply length (3 to 7 seconds)
+            char_count = len(reply_text)
+            typing_duration = max(3.0, min(7.5, (char_count * 0.08) + random.uniform(1.0, 2.5)))
+
+            logger.info(f"Typing auto-reply ({typing_duration:.1f}s) in channel...")
             async with channel.typing():
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(typing_duration)
+
             sent_msg = await channel.send(reply_text)
-            logger.info(f"Auto-reply sent in channel: {reply_text}")
+            logger.info(f"Auto-reply sent: {reply_text}")
 
             # Save outgoing auto-reply to DB
             db = SessionLocal()
