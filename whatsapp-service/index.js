@@ -128,18 +128,22 @@ function createWhatsAppClient(userId) {
 
       // If backend requested an auto-reply
       if (res.data && res.data.autoReply && res.data.replyText) {
+        const replyText = res.data.replyText;
+        const readDelay = 3500 + Math.random() * 2500; // 3.5 to 6s pause
+        const typingDuration = Math.max(3000, Math.min(7500, replyText.length * 80 + Math.random() * 1500)); // 3 to 7.5s typing
+
         setTimeout(async () => {
           try {
             const chat = await msg.getChat();
             await chat.sendStateTyping();
             setTimeout(async () => {
-              await client.sendMessage(msg.from, res.data.replyText);
-              console.log(`[WhatsApp] Auto-reply sent to ${contactName}: "${res.data.replyText}"`);
-            }, 2000);
+              await client.sendMessage(msg.from, replyText);
+              console.log(`[WhatsApp] Auto-reply sent to ${contactName} after typing: "${replyText}"`);
+            }, typingDuration);
           } catch (replyErr) {
             console.error(`[WhatsApp] Failed to send auto-reply: ${replyErr.message}`);
           }
-        }, 1500);
+        }, readDelay);
       }
     } catch (err) {
       console.error(`[WhatsApp] Error processing message: ${err.message}`);

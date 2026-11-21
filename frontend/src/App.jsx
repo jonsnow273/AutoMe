@@ -8,6 +8,7 @@ import Inbox from './pages/Inbox'
 import Conversation from './pages/Conversation'
 import EmptyConversation from './components/EmptyConversation'
 import ConnectPlatforms from './pages/ConnectPlatforms'
+import Settings from './pages/Settings'
 
 // Spinner shown while auth state loads
 function Spinner() {
@@ -44,6 +45,7 @@ function AppRoutes() {
         <Route path="/inbox/:contactId" element={<Conversation />} />
       </Route>
       <Route path="/platforms" element={<ProtectedRoute><ConnectPlatforms /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
     </Routes>
   )
 }

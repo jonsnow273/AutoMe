@@ -66,13 +66,22 @@ export default function Sidebar() {
           </div>
           <span className="font-bold text-white tracking-wide">AutoMe</span>
         </div>
-        <button
-          onClick={() => navigate('/platforms')}
-          className="px-3 py-1.5 text-xs font-semibold rounded-xl bg-accent-600/20 text-accent-400 hover:bg-accent-600/30 border border-accent-500/30 transition-all flex items-center gap-1.5"
-          title="Connect Platforms"
-        >
-          <span>Platforms</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => navigate('/settings')}
+            className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 border border-dark-600 transition-all flex items-center gap-1"
+            title="AI Persona & Settings"
+          >
+            <span>AI Settings</span>
+          </button>
+          <button
+            onClick={() => navigate('/platforms')}
+            className="px-2.5 py-1.5 text-xs font-semibold rounded-xl bg-accent-600/20 text-accent-400 hover:bg-accent-600/30 border border-accent-500/30 transition-all flex items-center gap-1"
+            title="Connect Platforms"
+          >
+            <span>Platforms</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter */}
