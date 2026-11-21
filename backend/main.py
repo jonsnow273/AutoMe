@@ -8,6 +8,7 @@ from backend.api import (
     platforms_router,
     settings_router,
     analytics_router,
+    ai_router,
 )
 from backend.events import socket_app
 import os
@@ -54,6 +55,7 @@ app.include_router(contacts_router)
 app.include_router(messages_router)
 app.include_router(settings_router)
 app.include_router(analytics_router)
+app.include_router(ai_router)
 
 # Mount Socket.IO
 app.mount("/socket.io", socket_app)

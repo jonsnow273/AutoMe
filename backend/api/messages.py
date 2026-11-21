@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func, or_
-from typing import Optional, List
+from typing import Optional, List, Union
 from pydantic import BaseModel
 from datetime import datetime
 import os
@@ -30,7 +30,7 @@ class ContactSummary(BaseModel):
     display_name: Optional[str]
     avatar_url: Optional[str]
     relationship_type: Optional[str]
-    last_interaction: Optional[str]
+    last_interaction: Optional[Union[datetime, str]] = None
     unread_count: int = 0
 
     class Config:
@@ -44,13 +44,13 @@ class MessageResponse(BaseModel):
     contact_id: Optional[int]
     content: str
     direction: str
-    timestamp: str
+    timestamp: Union[datetime, str]
     is_read: bool
-    mood: Optional[str]
-    urgency: Optional[str]
-    relationship_type: Optional[str]
-    suggested_reply: Optional[str]
-    reply_confidence: Optional[int]
+    mood: Optional[str] = None
+    urgency: Optional[str] = None
+    relationship_type: Optional[str] = None
+    suggested_reply: Optional[str] = None
+    reply_confidence: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -140,8 +140,11 @@ def get_conversation(
     ).update({"is_read": True})
     db.commit()
 
+    # Chronological order for conversation view (oldest to newest)
+    ordered_messages = list(reversed(messages))
+
     return MessagesListResponse(
-        messages=[MessageResponse.model_validate(m) for m in messages],
+        messages=[MessageResponse.model_validate(m) for m in ordered_messages],
         total=total,
         page=page,
         page_size=page_size,

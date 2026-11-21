@@ -4,6 +4,7 @@ from backend.api.platforms import router as platforms_router
 from backend.auth.router import router as auth_router
 from backend.api.settings import router as settings_router
 from backend.api.analytics import router as analytics_router
+from backend.api.ai import router as ai_router
 
 __all__ = [
     "messages_router",
@@ -12,4 +13,5 @@ __all__ = [
     "auth_router",
     "settings_router",
     "analytics_router",
+    "ai_router",
 ]

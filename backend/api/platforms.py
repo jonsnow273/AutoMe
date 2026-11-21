@@ -733,17 +733,49 @@ async def whatsapp_webhook_message(
         "last_message_time": msg.timestamp.isoformat() if msg.timestamp else None,
     })
 
-    # Check auto reply / busy mode
+    # Check auto reply / busy mode and generate AI response
     platform = db.query(Platform).filter(
         Platform.user_id == data.userId,
         Platform.platform_type == PlatformType.WHATSAPP
     ).first()
     settings = json.loads(platform.settings) if (platform and platform.settings) else {}
+
+    reply_text = None
+    try:
+        from backend.ai.reply_generator import generate_reply
+        ai_res = await generate_reply(
+            user_id=data.userId,
+            incoming_text=data.content,
+            contact=contact,
+            db=db,
+            platform_type="whatsapp",
+            custom_busy_note=settings.get("custom_busy_message"),
+        )
+        reply_text = ai_res.get("reply")
+        msg.suggested_reply = reply_text
+        msg.reply_confidence = ai_res.get("confidence")
+        try:
+            from backend.models.message import MessageMood, MessageUrgency
+            msg.mood = MessageMood(ai_res.get("mood", "neutral"))
+        except Exception:
+            pass
+        try:
+            msg.urgency = MessageUrgency(ai_res.get("urgency", "low"))
+        except Exception:
+            pass
+        try:
+            msg.relationship_type = RelationshipType(ai_res.get("relationship", "friend"))
+        except Exception:
+            pass
+        db.commit()
+    except Exception as e:
+        logger.error(f"AI reply generation error on WhatsApp: {e}")
+
     if settings.get("auto_reply_enabled", True) and settings.get("busy_mode", True):
-        reply_text = settings.get(
+        final_reply = reply_text or settings.get(
             "custom_busy_message",
             "Hey! I'm currently busy and away from my phone right now. I've received your message on WhatsApp and will get back to you soon!"
         )
-        return {"autoReply": True, "replyText": reply_text}
+        return {"autoReply": True, "replyText": final_reply}
 
     return {"autoReply": False}
